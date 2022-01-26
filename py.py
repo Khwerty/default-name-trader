@@ -1,61 +1,115 @@
-from json import dump
+from credentials import API_KEY,API_SECRET
+from binance import Client
+from ta.momentum import RSIIndicator as rsi
+import pandas as pd
 
-def dumpLOD(data,filename):
-    s = open(filename,'w')
-    for i in data:
-        dump(i,s)
-        s.write('\n')
-    s.close()
-    print(filename+' Creado.')
+from itertools import repeat
 
-def loadLOD(filename):
-    s = open(filename,'r')
-    d = s.readlines()
-    s.close()
-    data = []
-    for i in d :
+client = Client(API_KEY,API_SECRET)
 
-        da = i.replace ('[','')
-        da = da.replace(']','')
-        da = da.replace('"','')
-        da = da.replace(' ','')
-        da = da.split  (',')
-        da = [ float(i) for i in da]
-        data.append( da)
+def getCandles(coinSymbol,interval,startDate):
 
-    print(filename+' Importado')
-    return data
+    return client.get_historical_klines(coinSymbol, interval, startDate)
+  
+orderType = { "none":0, "BUY":1, "SELL":2 }
+over = {"BUY": 70, "SELL":30 }
+#tg = {"RSI": 0, "SL": 1}
 
-candleData = loadLOD(r"J:\Jobs\autotrade\Co_ADAUSDT_1d_2M.txt")
+order_list = []
+trade_list = []
 
-trade = { "none":0, "long":1, "short":2 }
+overbuy = True
+oversell = False
 
+lastOrder = orderType["none"]
+openOrder = False
+
+trade_id = 0
+trigger = 0
+
+trade_grafic = []
+
+
+symbol = "ADA"
+leverage = 1
+amount = 100
+
+candles = pd.DataFrame( getCandles("ADAUSDT","1m","10 hours ago UTC") )
+
+candles_close = candles[4].map(float)
+
+rsi = rsi( candles_close, 14, 1)
+
+candles_close = list(candles_close)
+
+rsi_list = list(rsi._rsi)
+
+def makeOrder( orderType, amount, symbol, leverage, stoploss = 1 ):
+  global trade_id, lastOrder, openOrder
+  
+  lastOrder = orderType
+   
+  order_list.append([ trade_id, orderType, amount, close_price, trigger])
+  
+  if openOrder == True:
+    tradeType = "SHORT" if lastOrder == "BUY" else "LONG"
+    
+    price_aperture = order_list[-2][3]
+    price_close = order_list[-1][3]
+    
+    variation =  price_aperture - price_close
+    if lastOrder == "SELL" : variation = -variation 
+    
+    trade_list.append([ tradeType, price_aperture, price_close, variation])
+    
+    lastOrder = "none"
+    trade_id += 1
+    
+  openOrder = (not openOrder)
+  
+def verTrade( situation, leverage = 0, stoploss = 1 ):
+  #situation: 1 = overBuy  0 = overSell
+      
+  if situation :
+    if lastOrder == "SELL" : pass #Do Nothing Wait Stoploss
+    
+    elif lastOrder == "BUY"  : #Close Long
+      makeOrder("SELL",amount, symbol, leverage)
+      
+    else : #Opening Short orderType
+      makeOrder("SELL",amount, symbol, leverage)
+      
+      
+  else :
+    if   lastOrder == "BUY"  : pass #Do Nothing Wait Stoploss
+    
+    elif lastOrder == "SELL" : #Close Short 
+      makeOrder("BUY",amount, symbol, leverage) 
+    
+    else : #Opening Long orderType
+      makeOrder("BUY",amount, symbol, leverage)
+      
 
 # apertura maximo minimo cierre
-for i in candleData:
+
+for ( close_price, rsi_value ) in zip( candles_close, rsi_list ):
+  
+  if over["BUY"] > rsi_value > over["SELL"] : pass
+
+  else:
     
-    candle_open = float(i[1])
-    candle_max = float(i[2])
-    candle_min = float(i[3])
-    candle_close = float(i[4])
+    #Triggers
+    if rsi_value > over["BUY"]  : situation = overbuy
+    if rsi_value < over["SELL"] : situation = oversell
     
-    #RESMAS Strategy
+    trigger = "RSI"
+
+    verTrade( situation )
     
-    #OverBuy Trigger
-    if RSI > overBuyLvl : pass #Order Script
-    if RSI < overSellLvl : pass #Order Script
-    
-    def verTrade( situation, amount, leverage = 0, stoploss = 2 ):
-        #situation 1 = overbuy - 0 overSell
-        
-        if situation :
-            if   lastTrade == trade["long"] : pass #Close Long Trade Code
-            elif lastTrade == trade["short"] : pass #Do Nothing Wait Stoploss
-            else : pass #Open Short Trade Code
-            
-        else :
-            if   lastTrade == trade["long"] : pass #Do Nothing Wait Stoploss
-            elif lastTrade == trade["short"] : pass #Close Short Trade Code
-            else : pass #Open Long Trade Code
-        
-        
+  if openOrder : trade_grafic.append(close_price)
+  else : trade_grafic.append(0.93)
+
+aagrafic = []
+
+for (a,b,c) in zip( list(repeat(70,600)),list(repeat(30,600)),rsi_list):
+    aagrafic.append([a,b,c])
