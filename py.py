@@ -65,28 +65,28 @@ def makeOrder( orderType, amount, symbol, leverage, stoploss = 1 ):
   openOrder = (not openOrder)
   
 def verTrade( situation, leverage = 0, stoploss = 1 ):
+  
       
   if situation == overbuy :
     
+    if not openOrder : makeOrder("SELL",amount, symbol, leverage)
+    
     if lastOrder == "SELL" : pass #Do Nothing Wait Stoploss
     
-    elif lastOrder == "BUY"  : #Close Long
+    if lastOrder == "BUY"  : #Close Long
       makeOrder("SELL",amount, symbol, leverage)
-      
-    else : #Opening Short orderType
-      makeOrder("SELL",amount, symbol, leverage)
-      
-      
+
+
   if situation == oversell :
-    if   lastOrder == "BUY"  : pass #Do Nothing Wait Stoploss
     
-    elif lastOrder == "SELL" : #Close Short 
-      makeOrder("BUY",amount, symbol, leverage) 
+    if not openOrder : makeOrder("BUY",amount, symbol, leverage)
     
-    else : #Opening Long orderType
+    if lastOrder == "BUY" : pass #Do Nothing Wait Stoploss
+    
+    if lastOrder == "SELL"  : #Close Long
       makeOrder("BUY",amount, symbol, leverage)
       
-
+      
 # apertura maximo minimo cierre
 
 for ( close_price, rsi_value ) in zip( candles_close, rsi_list ):
