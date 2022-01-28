@@ -3,31 +3,28 @@ from binance import Client
 from ta.momentum import RSIIndicator as rsi
 import pandas as pd
 
-from itertools import repeat
-
 client = Client(API_KEY,API_SECRET)
 
 def getCandles(coinSymbol,interval,startDate):
 
     return client.get_historical_klines(coinSymbol, interval, startDate)
   
-orderType = { "none":0, "BUY":1, "SELL":2 }
 over = {"BUY": 70, "SELL":30 }
 #tg = {"RSI": 0, "SL": 1}
 
-order_list = []
-trade_list = []
+list_order = []
+list_trade = []
 
 overbuy = True
 oversell = False
 
-lastOrder = orderType["none"]
+lastOrder = "none"
 openOrder = False
 
 trade_id = 0
 trigger = 0
 
-trade_grafic = []
+a_trade_grafic = []
 
 
 symbol = "ADA"
@@ -49,18 +46,18 @@ def makeOrder( orderType, amount, symbol, leverage, stoploss = 1 ):
   
   lastOrder = orderType
    
-  order_list.append([ trade_id, orderType, amount, close_price, trigger])
+  list_order.append([ trade_id, orderType, amount, close_price, trigger])
   
   if openOrder == True:
     tradeType = "SHORT" if lastOrder == "BUY" else "LONG"
     
-    price_aperture = order_list[-2][3]
-    price_close = order_list[-1][3]
+    price_aperture = list_order[-2][3]
+    price_close = list_order[-1][3]
     
     variation =  price_aperture - price_close
     if lastOrder == "SELL" : variation = -variation 
     
-    trade_list.append([ tradeType, price_aperture, price_close, variation])
+    list_trade.append([ tradeType, price_aperture, price_close, variation])
     
     lastOrder = "none"
     trade_id += 1
@@ -68,9 +65,9 @@ def makeOrder( orderType, amount, symbol, leverage, stoploss = 1 ):
   openOrder = (not openOrder)
   
 def verTrade( situation, leverage = 0, stoploss = 1 ):
-  #situation: 1 = overBuy  0 = overSell
       
-  if situation :
+  if situation == overbuy :
+    
     if lastOrder == "SELL" : pass #Do Nothing Wait Stoploss
     
     elif lastOrder == "BUY"  : #Close Long
@@ -80,7 +77,7 @@ def verTrade( situation, leverage = 0, stoploss = 1 ):
       makeOrder("SELL",amount, symbol, leverage)
       
       
-  else :
+  if situation == oversell :
     if   lastOrder == "BUY"  : pass #Do Nothing Wait Stoploss
     
     elif lastOrder == "SELL" : #Close Short 
@@ -106,10 +103,7 @@ for ( close_price, rsi_value ) in zip( candles_close, rsi_list ):
 
     verTrade( situation )
     
-  if openOrder : trade_grafic.append(close_price)
-  else : trade_grafic.append(0.93)
+  if openOrder : a_trade_grafic.append(close_price)
+  else : a_trade_grafic.append(1.01)
 
-aagrafic = []
-
-for (a,b,c) in zip( list(repeat(70,600)),list(repeat(30,600)),rsi_list):
-    aagrafic.append([a,b,c])
+a_rsi_grafic = [ [30,rsi,70] for rsi in rsi_list ]
