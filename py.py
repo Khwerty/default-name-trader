@@ -10,26 +10,26 @@ def getCandles(coinSymbol,interval,startDate):
     return client.get_historical_klines(coinSymbol, interval, startDate)
   
 over = {"BUY": 70, "SELL":30 }
-#tg = {"RSI": 0, "SL": 1}
 
 list_order = []
 list_trade = []
 
+a_trade_grafic = []
+a_rsi_grafic = []
+
 overbuy = True
 oversell = False
 
-lastOrder = "none"
-openOrder = False
+last_order = "none"
+open_order = False
 
-trade_id = 0
-trigger = 0
-
-a_trade_grafic = []
+trade_id, trigger = 0,0
 
 
 symbol = "ADA"
 leverage = 1
 amount = 100
+
 
 candles = pd.DataFrame( getCandles("ADAUSDT","1m","10 hours ago UTC") )
 
@@ -42,52 +42,50 @@ candles_close = list(candles_close)
 rsi_list = list(rsi._rsi)
 
 def makeOrder( orderType, amount, symbol, leverage, stoploss = 1 ):
-  global trade_id, lastOrder, openOrder
+  global trade_id, last_order, open_order
   
-  lastOrder = orderType
+  last_order = orderType
    
   list_order.append([ trade_id, orderType, amount, close_price, trigger])
   
-  if openOrder == True:
-    tradeType = "SHORT" if lastOrder == "BUY" else "LONG"
+  if open_order == True:
+    trade_type = "SHORT" if last_order == "BUY" else "LONG"
     
     price_aperture = list_order[-2][3]
     price_close = list_order[-1][3]
     
     variation =  price_aperture - price_close
-    if lastOrder == "SELL" : variation = -variation 
+    if last_order == "SELL" : variation = -variation 
     
-    list_trade.append([ tradeType, price_aperture, price_close, variation])
+    list_trade.append([ trade_type, price_aperture, price_close, variation])
     
-    lastOrder = "none"
+    last_order = "none"
     trade_id += 1
     
-  openOrder = (not openOrder)
+  open_order = (not open_order)
   
 def verTrade( situation, leverage = 0, stoploss = 1 ):
   
       
   if situation == overbuy :
     
-    if not openOrder : makeOrder("SELL",amount, symbol, leverage)
+    if not open_order : makeOrder("SELL",amount, symbol, leverage)
     
-    if lastOrder == "SELL" : pass #Do Nothing Wait Stoploss
+    if last_order == "SELL" : pass #Do Nothing Wait Stoploss
     
-    if lastOrder == "BUY"  : #Close Long
+    if last_order == "BUY"  : #Close Long
       makeOrder("SELL",amount, symbol, leverage)
 
 
   if situation == oversell :
     
-    if not openOrder : makeOrder("BUY",amount, symbol, leverage)
+    if not open_order : makeOrder("BUY",amount, symbol, leverage)
     
-    if lastOrder == "BUY" : pass #Do Nothing Wait Stoploss
+    if last_order == "BUY" : pass #Do Nothing Wait Stoploss
     
-    if lastOrder == "SELL"  : #Close Long
+    if last_order == "SELL"  : #Close Long
       makeOrder("BUY",amount, symbol, leverage)
       
-      
-# apertura maximo minimo cierre
 
 for ( close_price, rsi_value ) in zip( candles_close, rsi_list ):
   
@@ -103,7 +101,6 @@ for ( close_price, rsi_value ) in zip( candles_close, rsi_list ):
 
     verTrade( situation )
     
-  if openOrder : a_trade_grafic.append(close_price)
-  else : a_trade_grafic.append(1.01)
+  a_trade_grafic.append( close_price if open_order else 1.01)
 
 a_rsi_grafic = [ [30,rsi,70] for rsi in rsi_list ]
